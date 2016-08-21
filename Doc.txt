@@ -1,0 +1,35 @@
+=======
+HISTORY
+=======
+
+Version 1.0.0 - dd/mm/yy
+-------------
+
+- Outputs:
+
+  2 x Servo motors (toy and dispenser)
+  1 x Speaker
+
+- Input:
+
+  1 x NFC reader
+  1 x Ultrasonic range measurement module
+
+=======
+ROADMAP
+=======
+
+TO-DO
+-----
+
+- 
+
+ISSUES
+------
+
+-
+
+IDEAS
+-----
+
+- 
