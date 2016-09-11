@@ -10,7 +10,9 @@
 //----------------------------------------------------------------------------//
 
 // TURN ON DEBUG MODE
-//#define DEBUG_BUTTON
+// #define DEBUG_BUTTON
+// #define DEBUG_NFC
+// #define DEBUG_PROX
 
 //----------------------------------------------------------------------------//
 // LIBRARIES                                                                  //
@@ -22,6 +24,14 @@
 // SOUND LIBRARY
 #include <Pitches.h>
 
+// NFC LIBRARIES
+#include <SPI.h>
+#include "PN532_SPI.h"
+#include "PN532.h"
+#include "NfcAdapter.h"
+PN532_SPI interface(SPI, 10);
+NfcAdapter nfc = NfcAdapter(interface);
+
 //----------------------------------------------------------------------------//
 // CONSTANTS                                                                  //
 //----------------------------------------------------------------------------//
@@ -31,22 +41,26 @@ Servo lever_motor;
 Servo body_motor;
 
 // PINS
-const int led_r_pin = 11;
-const int led_g_pin = 6;
-const int led_b_pin = 5;
-const int lever_pin = 9;
-const int body_pin = 10;
-const int button_pin = 13;
+const int body_pin = 9;
+const int lever_pin = 3;
 const int speaker_pin = 4;
+const int prox_pin = A0;
+const int button_pin = 2;
+const int led_r_pin = 7;
+const int led_g_pin = 5;
+const int led_b_pin = 6;
 
 // POSITIONS
-const int body_min = 0;
-const int body_max = 180;
+const int body_min = 180;
+const int body_max = 0;
 const int lever_min = 0;
 const int lever_max = 100;
 
+// NFC
+String const nfc_id = "EB C8 66 D6";
+
 // MISCELANEOUS
-const int motor_step = 10;
+const int motor_step = 15;
 
 // TIME
 const unsigned long timeout = 10000;
@@ -138,6 +152,11 @@ int lever_pos = lever_min;
 int body_pos = body_min;
 boolean button_state = HIGH;
 boolean button_state_prev = HIGH;
+float prox_sensor;
+// 0 = SLEEPING
+// 1 = WAITING
+// 2 = AUTHORIZED
+int state = 0;
 
 //----------------------------------------------------------------------------//
 // FUNCTIONS (SETTINGS)                                                       //
@@ -145,14 +164,18 @@ boolean button_state_prev = HIGH;
 
 void setup() {
     // INITIALIZE PINS
+    pinMode(speaker_pin, OUTPUT);
+    pinMode(button_pin, INPUT);
     pinMode(led_r_pin, OUTPUT);
     pinMode(led_g_pin, OUTPUT);
     pinMode(led_b_pin, OUTPUT);
-    pinMode(button_pin, INPUT);
-    pinMode(speaker_pin, OUTPUT);
+    pinMode(prox_pin, INPUT);
 
     // INITIATE SERIAL COMMUNICATION
     Serial.begin(9600);
+
+    // INITIATE NFC COMMUNICATION
+    nfc.begin();
 
     // INITIATE RANDOM NUMBER GENERATOR
     randomSeed(analogRead(0));
@@ -162,9 +185,7 @@ void setup() {
 }
 
 void reset() {
-    // set_leds(6, 255);
-    // play_tone(3, 2);
-    // set_leds(3, 0);
+    set_leds(4, 0);
     reset_motors();
 
     return;
@@ -509,6 +530,7 @@ void check_timeout() {
     // if (millis() > timeout) {
     //     xxxxx;
     // }
+    // sign_leds(4, 3, 1);
 
     return;
 }
@@ -520,22 +542,78 @@ void check_button() {
         Serial.print("button_state = ");
         Serial.println(button_state);
     #endif
-
+    
     if (button_state != button_state_prev) {
         button_state_prev = button_state;
 
         if (button_state == LOW) {
-            move(50, lever_min, lever_max, 999, 999);
+            play_tone(2, 1);
+            set_leds(0, 0);
             delay(500);
-            move(50, lever_max, lever_min, 999, 999);
-            delay(1000);
-            move(100, 999, 999, body_min, body_max);
+            set_leds(1, 0);
             delay(500);
-            move(100, 999, 999, body_max, body_min);
-        }
+            set_leds(2, 0);
+            delay(500);
+            set_leds(3, 0);
+            delay(500);
+            set_leds(4, 0);
+            delay(500);
+            set_leds(5, 0);
+            delay(500);
+            set_leds(6, 0);
+            delay(500);
+            set_leds(0, 0);
+            sign_leds(0, 4, 1);
+            set_leds(4, 0);
+            sign_leds(4, 4, 1);
+       }
     }
 
     return;
+}
+
+void check_nfc() {
+    if (nfc.tagPresent()) {
+        NfcTag tag = nfc.read();
+
+        #ifdef DEBUG_NFC
+            tag.print();
+        #endif
+
+        String nfc_id_read = tag.getUidString();
+
+        if (nfc_id.compareTo(nfc_id_read) == 0) {
+            set_leds(0, 0);
+            play_tone(3, 2);
+            move_body(1);
+        } else {
+            play_tone(0, 2);
+        }
+    }
+}
+
+void check_prox() {
+    prox_sensor = 0;
+    int num_check = 5;
+    for (int i = 0; i < num_check; i++)
+    {
+        prox_sensor = prox_sensor + analogRead(prox_pin);
+    }
+    prox_sensor = prox_sensor / num_check;
+
+    #ifdef DEBUG_PROX
+        Serial.print("prox_sensor = ");
+        Serial.println(prox_sensor);
+    #endif
+
+    if (prox_sensor > 500) {
+        set_leds(1, 0);
+        delay(500);
+        move_lever();
+        set_leds(4, 0);
+        delay(1000);
+        move_body(0);
+    }
 }
 
 //----------------------------------------------------------------------------//
@@ -548,12 +626,12 @@ void reset_motors() {
 
     motors_attach_detach(0, 0);
     lever_motor.write(lever_min);
-    delay(100);
+    delay(500);
     motors_attach_detach(1, 0);
 
     motors_attach_detach(0, 1);
     body_motor.write(body_min);
-    delay(100);
+    delay(500);
     motors_attach_detach(1, 1);
 }
 
@@ -575,8 +653,7 @@ void move(int time, int pos1, int new_pos1, int pos2, int new_pos2) {
         continue2 = false;
     }
 
-    do
-    {
+    do {
         if (continue1) {
             if (pos1 == new_pos1) {
               continue1 = false;
@@ -614,6 +691,44 @@ void move(int time, int pos1, int new_pos1, int pos2, int new_pos2) {
     motors_attach_detach(1, 1);
 }
 
+void move_body(int pos) {
+    // POS:
+    // 0 = FRONT
+    // 1 = BACK
+
+//    if (pos == 0) {
+//        move(70, 999, 999, body_max, body_min);
+//    } else {
+//        move(70, 999, 999, body_min, body_max);
+//    }
+
+    if (pos == 0) {
+        motors_attach_detach(0, 1);
+        body_motor.write(body_min);
+        delay(600);
+        motors_attach_detach(1, 1);
+    } else {
+        motors_attach_detach(0, 1);
+        body_motor.write(body_max);
+        delay(600);
+        motors_attach_detach(1, 1);
+    }
+}
+
+void move_lever() {
+    motors_attach_detach(0, 0);
+    lever_motor.write(lever_max);
+    delay(300);
+    lever_motor.write(lever_min);
+    delay(300);
+    motors_attach_detach(1, 0);
+}
+
+//----------------------------------------------------------------------------//
+// MIS                                                                        //
+//----------------------------------------------------------------------------//
+
+
 //----------------------------------------------------------------------------//
 // MAIN                                                                       //
 //----------------------------------------------------------------------------//
@@ -621,5 +736,7 @@ void move(int time, int pos1, int new_pos1, int pos2, int new_pos2) {
 void loop() {
     check_timeout();
     check_button();
+    check_nfc();
+    check_prox();
 }
 
