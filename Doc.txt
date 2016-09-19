@@ -2,7 +2,7 @@
 HISTORY
 =======
 
-Version 1.0.0 - dd/mm/yy
+Version 1.0.0 - 18/09/16
 -------------
 
 - Outputs:
