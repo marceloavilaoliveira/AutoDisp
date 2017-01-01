@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------//
 // Filename    : AutoDisp.ino                                                 //
-// Description : An Automatic M&Ms Dispenser                                  //
+// Description : Automatic Dispenser                                          //
 // Version     : 1.0.0                                                        //
 // Author      : Marcelo Avila de Oliveira <marceloavilaoliveira@gmail.com>   //
 //----------------------------------------------------------------------------//
@@ -72,7 +72,7 @@ float percent_to_bright_factor = 100 * log10(2) / log10(255);
 // STATUS
 boolean lock = true;
 boolean front = true;
-boolean next_ok = true;
+boolean lever_ok = false;
 
 // TIME
 unsigned long timeout_lock = 0;
@@ -106,7 +106,7 @@ void setup() {
 
 void reset() {
     // LEDS
-    set_leds(2, 50);
+    set_leds(2, 25);
 
     // MOTOR LEVER
     motors_attach_detach(0, 0);
@@ -151,7 +151,7 @@ void test() {
     delay(1000);
     set_leds(6, 100);
     delay(1000);
-    set_leds(2, 50);
+    set_leds(2, 100);
     delay(1000);
     move_body(1);
     delay(1000);
@@ -335,8 +335,9 @@ void check_timeout() {
 
     if (! lock && millis() > timeout_lock) {
         play_tone(0, 2);
-        set_leds(2, 50);
+        set_leds(2, 25);
         if (! front) {
+            set_leds(0, 50);
             move_body(0);
         }
         lock = !lock;
@@ -362,18 +363,24 @@ void check_nfc() {
 
         if (nfc_id.compareTo(nfc_id_auth) == 0) {
             play_tone(3, 1);
+            set_timeout();
             if (lock) {
-                set_leds(0, 100);
-                set_timeout(1);
+                set_leds(0, 50);
             } else {
-                set_leds(2, 50);
+                set_leds(2, 25);
                 if (! front) {
                     move_body(0);
                 }
             }
             lock = !lock;
         } else {
+            set_leds(2, 100);
             play_tone(0, 2);
+            if (lock) {
+                set_leds(2, 25);
+            } else {
+                set_leds(0, 50);
+            }
         }
     }
 }
@@ -393,26 +400,33 @@ void check_prox() {
     #endif
 
     if (prox_sensor > 500) {
+        set_timeout();
         if (front) {
             if (lock) {
                 set_leds(2, 100);
                 play_tone(0, 2);
-                set_leds(2, 50);
+                set_leds(2, 25);
             } else {
+                set_leds(0, 100);
                 play_tone(3, 1);
                 move_body(1);
             }
         } else {
-            if (next_ok) {
-                set_leds(1, 100);
-                play_tone(3, 3);
+            if (lever_ok) {
                 move_lever();
                 set_leds(0, 100);
-                next_ok=false;
+                lever_ok=false;
+            } else {
+                set_leds(1, 100);
+                play_tone(3, 3);
+                lever_ok=true;
             }
         }
     } else {
-        next_ok=true;
+        if (! front) {
+            set_leds(0, 100);
+            lever_ok=false;
+        }
     }
 }
 
@@ -485,10 +499,9 @@ void move_body(int pos) {
 
     if (pos == 0) {
         front=true;
-        move(5, 50, 200, 999, 999, body_max, body_min);
+        move(5, 25, 200, 999, 999, body_max, body_min);
     } else {
         front=false;
-        set_timeout(0);
         motors_attach_detach(0, 1);
         body_motor.write(body_max);
         delay(1500);
@@ -497,33 +510,22 @@ void move_body(int pos) {
 }
 
 void move_lever() {
-    delay(500);
     motors_attach_detach(0, 0);
     lever_motor.write(lever_max);
     delay(300);
     lever_motor.write(lever_min);
     delay(1500);
     motors_attach_detach(1, 0);
-    set_timeout(0);
+    delay(1000);
 }
 
 //----------------------------------------------------------------------------//
 // MIS                                                                        //
 //----------------------------------------------------------------------------//
 
-void set_timeout(int type) {
-    // TYPE:
-    // 0 = ALL
-    // 1 = LOCK TIMEOUT
-    // 2 = FRONT TIMEOUT
-
-    if (type == 0 || type == 1) {
-        timeout_lock = millis() + 2 * timeout;
-    }
-
-    if (type == 0 || type == 2) {
-        timeout_front = millis() + timeout;
-    }
+void set_timeout() {
+    timeout_lock = millis() + 6 * timeout;
+    timeout_front = millis() + timeout;
 }
 
 //----------------------------------------------------------------------------//
