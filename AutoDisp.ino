@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------//
 // Filename    : AutoDisp.ino                                                 //
 // Description : Automatic Dispenser                                          //
-// Version     : 1.0.0                                                        //
+// Version     : 1.1.0                                                        //
 // Author      : Marcelo Avila de Oliveira <marceloavilaoliveira@gmail.com>   //
 //----------------------------------------------------------------------------//
 
@@ -12,7 +12,6 @@
 // TURN ON DEBUG MODE
 // #define DEBUG_TEST
 // #define DEBUG_TIMEOUT
-// #define DEBUG_NFC
 // #define DEBUG_PROX
 
 //----------------------------------------------------------------------------//
@@ -24,14 +23,6 @@
 
 // SOUND LIBRARY
 #include <Pitches.h>
-
-// NFC LIBRARIES
-#include <SPI.h>
-#include "PN532_SPI.h"
-#include "PN532.h"
-#include "NfcAdapter.h"
-PN532_SPI interface(SPI, 10);
-NfcAdapter nfc = NfcAdapter(interface);
 
 //----------------------------------------------------------------------------//
 // CONSTANTS                                                                  //
@@ -56,11 +47,8 @@ const int body_max = 0;
 const int lever_min = 0;
 const int lever_max = 55;
 
-// NFC
-String const nfc_id_auth = "EB C8 66 D6";
-
 // TIME
-const unsigned long timeout = 10000;
+const unsigned long timeout_value = 10000;
 
 // MATH
 float percent_to_bright_factor = 100 * log10(2) / log10(255);
@@ -75,9 +63,7 @@ boolean front = true;
 boolean lever_ok = false;
 
 // TIME
-unsigned long timeout_lock = 0;
-unsigned long timeout_front = 0;
-int time_nfc = 0;
+unsigned long timeout = 0;
 
 //----------------------------------------------------------------------------//
 // FUNCTIONS (SETTINGS)                                                       //
@@ -93,9 +79,6 @@ void setup() {
 
     // INITIATE SERIAL COMMUNICATION
     Serial.begin(9600);
-
-    // INITIATE NFC COMMUNICATION
-    nfc.begin();
 
     // INITIATE RANDOM NUMBER GENERATOR
     randomSeed(analogRead(0));
@@ -327,62 +310,16 @@ void set_leds(int color, int bright) {
 
 void check_timeout() {
     #ifdef DEBUG_TIMEOUT
-        Serial.print("timeout_lock = ");
-        Serial.println(timeout_lock);
-        Serial.print("timeout_front = ");
-        Serial.println(timeout_front);
+        Serial.print("timeout = ");
+        Serial.println(timeout);
     #endif
 
-    if (! lock && millis() > timeout_lock) {
-        play_tone(0, 2);
-        set_leds(2, 25);
-        if (! front) {
-            set_leds(0, 50);
-            move_body(0);
-        }
-        lock = !lock;
-    }
-
-    if (! front && millis() > timeout_front) {
+    if (! front && millis() > timeout) {
         play_tone(0, 2);
         move_body(0);
     }
 
     return;
-}
-
-void check_nfc() {
-    if (nfc.tagPresent()) {
-        NfcTag tag = nfc.read();
-
-        #ifdef DEBUG_NFC
-            tag.print();
-        #endif
-
-        String nfc_id = tag.getUidString();
-
-        if (nfc_id.compareTo(nfc_id_auth) == 0) {
-            play_tone(3, 1);
-            set_timeout();
-            if (lock) {
-                set_leds(0, 50);
-            } else {
-                set_leds(2, 25);
-                if (! front) {
-                    move_body(0);
-                }
-            }
-            lock = !lock;
-        } else {
-            set_leds(2, 100);
-            play_tone(0, 2);
-            if (lock) {
-                set_leds(2, 25);
-            } else {
-                set_leds(0, 50);
-            }
-        }
-    }
 }
 
 void check_prox() {
@@ -402,15 +339,9 @@ void check_prox() {
     if (prox_sensor > 500) {
         set_timeout();
         if (front) {
-            if (lock) {
-                set_leds(2, 100);
-                play_tone(0, 2);
-                set_leds(2, 25);
-            } else {
-                set_leds(0, 100);
-                play_tone(3, 1);
-                move_body(1);
-            }
+            set_leds(0, 100);
+            play_tone(3, 1);
+            move_body(1);
         } else {
             if (lever_ok) {
                 move_lever();
@@ -524,8 +455,7 @@ void move_lever() {
 //----------------------------------------------------------------------------//
 
 void set_timeout() {
-    timeout_lock = millis() + 6 * timeout;
-    timeout_front = millis() + timeout;
+    timeout = millis() + timeout_value;
 }
 
 //----------------------------------------------------------------------------//
@@ -535,11 +465,5 @@ void set_timeout() {
 void loop() {
     check_timeout();
     check_prox();
-    if (time_nfc == 500) {
-        check_nfc();
-        time_nfc=0;
-    } else {
-        time_nfc++;
-    }
 }
 

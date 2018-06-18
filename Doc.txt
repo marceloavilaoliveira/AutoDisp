@@ -2,6 +2,11 @@
 HISTORY
 =======
 
+Version 1.1.0 - 17/06/18
+-------------
+
+- Removido o NFC reader
+
 Version 1.0.0 - 25/03/17
 -------------
 
@@ -22,7 +27,7 @@ ROADMAP
 TO-DO
 -----
 
-- 
+-
 
 ISSUES
 ------
@@ -32,4 +37,4 @@ ISSUES
 IDEAS
 -----
 
-- 
+-
