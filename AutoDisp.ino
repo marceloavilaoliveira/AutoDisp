@@ -1,7 +1,6 @@
 //----------------------------------------------------------------------------//
-// Filename    : AutoDisp.ino                                                 //
-// Description : Automatic Dispenser                                          //
-// Version     : 1.1.0                                                        //
+// Description : Automatic M&M's Dispenser                                    //
+// Version     : 1.1.1                                                        //
 // Author      : Marcelo Avila de Oliveira <marceloavilaoliveira@gmail.com>   //
 //----------------------------------------------------------------------------//
 
@@ -10,7 +9,6 @@
 //----------------------------------------------------------------------------//
 
 // TURN ON DEBUG MODE
-// #define DEBUG_TEST
 // #define DEBUG_TIMEOUT
 // #define DEBUG_PROX
 
@@ -48,7 +46,7 @@ const int lever_min = 0;
 const int lever_max = 55;
 
 // TIME
-const unsigned long timeout_value = 10000;
+const unsigned long timeout_value = 5000;
 
 // MATH
 float percent_to_bright_factor = 100 * log10(2) / log10(255);
@@ -105,42 +103,6 @@ void reset() {
 
     // ALERT
     play_tone(3, 3);
-
-    #ifdef DEBUG_TEST
-        test();
-    #endif
-}
-
-void test() {
-    play_tone(0, 3);
-    delay(1000);
-    play_tone(1, 3);
-    delay(1000);
-    play_tone(2, 3);
-    delay(1000);
-    play_tone(3, 3);
-    delay(1000);
-    set_leds(0, 100);
-    delay(1000);
-    set_leds(1, 100);
-    delay(1000);
-    set_leds(2, 100);
-    delay(1000);
-    set_leds(3, 100);
-    delay(1000);
-    set_leds(4, 100);
-    delay(1000);
-    set_leds(5, 100);
-    delay(1000);
-    set_leds(6, 100);
-    delay(1000);
-    set_leds(2, 100);
-    delay(1000);
-    move_body(1);
-    delay(1000);
-    move_lever();
-    delay(1000);
-    move_body(0);
 }
 
 void motors_attach_detach(int mode, int num) {
@@ -316,6 +278,7 @@ void check_timeout() {
 
     if (! front && millis() > timeout) {
         play_tone(0, 2);
+        set_leds(2, 25);
         move_body(0);
     }
 
@@ -346,6 +309,7 @@ void check_prox() {
             if (lever_ok) {
                 move_lever();
                 set_leds(0, 100);
+                delay(1000);
                 lever_ok=false;
             } else {
                 set_leds(1, 100);
@@ -445,9 +409,8 @@ void move_lever() {
     lever_motor.write(lever_max);
     delay(300);
     lever_motor.write(lever_min);
-    delay(1500);
+    delay(600);
     motors_attach_detach(1, 0);
-    delay(1000);
 }
 
 //----------------------------------------------------------------------------//
@@ -466,4 +429,3 @@ void loop() {
     check_timeout();
     check_prox();
 }
-
