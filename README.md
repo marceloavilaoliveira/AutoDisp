@@ -1,10 +1,9 @@
-# marceloavilaoliveira/AutoDisp
+<h1 align="center">AutoDisp</h1>
+<h4 align="center">Automatic M&M's Dispenser</h4>
 
-Automatic Dispenser
+## INFORMATION
 
-## PROJECT
-
-See the project details at https://www.pcbway.com/project/shareproject/Automatic_M_M_s_dispenser_dd9b3f7e.html
+See the project details at [PCBWay > Projects](https://www.pcbway.com/project/shareproject/Automatic_M_M_s_dispenser_dd9b3f7e.html)
 
 ## VERSIONS
 
